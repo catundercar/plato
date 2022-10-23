@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -65,7 +64,12 @@ func (e *ePool) createAcceptProcess() {
 					}
 					fmt.Errorf("accept err: %v", e)
 				}
-				c := NewConnection(conn)
+
+				c, err := newConnection(conn)
+				if err != nil {
+					log.Println("accept new connection ", err.Error())
+					continue
+				}
 				ep.addTask(c)
 			}
 		}()
@@ -156,6 +160,7 @@ func (e *epoller) add(conn *connection) error {
 	conn.BindEpoller(e)
 	return nil
 }
+
 func (e *epoller) remove(c *connection) error {
 	subTcpNum()
 	fd := c.fd
@@ -167,6 +172,7 @@ func (e *epoller) remove(c *connection) error {
 	e.fdToConnTable.Delete(c.fd)
 	return nil
 }
+
 func (e *epoller) wait(msec int) ([]*connection, error) {
 	events := make([]unix.EpollEvent, config.GetGatewayEpollWaitQueueSize())
 	n, err := unix.EpollWait(e.fd, events, msec)
@@ -180,12 +186,6 @@ func (e *epoller) wait(msec int) ([]*connection, error) {
 		}
 	}
 	return connections, nil
-}
-func socketFD(conn *net.TCPConn) int {
-	tcpConn := reflect.Indirect(reflect.ValueOf(*conn)).FieldByName("conn")
-	fdVal := tcpConn.FieldByName("fd")
-	pfdVal := reflect.Indirect(fdVal).FieldByName("pfd")
-	return int(pfdVal.FieldByName("Sysfd").Int())
 }
 
 // 设置go 进程打开文件数的限制

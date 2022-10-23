@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"fmt"
 	"net"
 	"sync/atomic"
 )
@@ -13,17 +14,23 @@ type connection struct {
 	conn *net.TCPConn
 }
 
-func NewConnection(conn *net.TCPConn) *connection {
+func newConnection(conn *net.TCPConn) (*connection, error) {
+	fd, err := fd(conn)
+	if err != nil {
+		return nil, fmt.Errorf("get connection fd: %s", err.Error())
+	}
+
 	connID := atomic.AddUint64(&nextConnID, 1)
 	return &connection{
 		id:   connID,
-		fd:   socketFD(conn),
+		fd:   fd,
 		conn: conn,
-	}
+	}, nil
 }
+
 func (c *connection) Close() {
 	ep.tables.Delete(c.id)
-	if c.e != nil{
+	if c.e != nil {
 		c.e.fdToConnTable.Delete(c.fd)
 	}
 	err := c.conn.Close()
@@ -36,4 +43,12 @@ func (c *connection) RemoteAddr() string {
 
 func (c *connection) BindEpoller(e *epoller) {
 	c.e = e
+}
+
+func fd(conn *net.TCPConn) (int, error) {
+	file, err := conn.File()
+	if err != nil {
+		return -1, err
+	}
+	return int(file.Fd()), nil
 }
