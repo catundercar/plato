@@ -57,7 +57,7 @@ func (e *ePool) createAcceptProcess() {
 					_ = conn.Close()
 					continue
 				}
-				setTcpConifg(conn)
+				setTcpConfig(conn)
 				if e != nil {
 					if ne, ok := e.(net.Error); ok && ne.Temporary() {
 						fmt.Errorf("accept temp err: %v", ne)
@@ -219,6 +219,6 @@ func checkTcp() bool {
 	return num <= maxTcpNum
 }
 
-func setTcpConifg(c *net.TCPConn) {
+func setTcpConfig(c *net.TCPConn) {
 	_ = c.SetKeepAlive(true)
 }
